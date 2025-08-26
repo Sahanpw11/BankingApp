@@ -1,22 +1,110 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Container, Typography, Paper, Grid, Box, Switch, FormControlLabel,
-  Button, Card, CardContent, CardHeader, Divider, TextField, Alert,
+  Container, Typography, Box, Grid, Switch, FormControlLabel,
+  Button, Tabs, Tab, Divider, TextField, Alert,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
-  Snackbar, LinearProgress, CircularProgress, IconButton
+  Snackbar, CircularProgress, IconButton, InputAdornment,
+  Paper, useTheme, alpha, styled
 } from '@mui/material';
 import {
   SecurityOutlined as SecurityIcon,
-  NotificationsOutlined as NotificationsIcon,
   VisibilityOutlined as VisibilityIcon,
   VisibilityOffOutlined as VisibilityOffIcon,
-  LockOpen as LockOpenIcon,
-  Lock as LockIcon
+  Lock as LockIcon,
+  Settings as SettingsIcon,
+  Save as SaveIcon,
+  Tune as TuneIcon,
+  Notifications as NotificationsBellIcon,
+  DevicesOutlined as DevicesIcon
 } from '@mui/icons-material';
-import authService from '../../api/auth';
-import securityService from '../../services/securityService';
+// These services would be used in a real application with backend integration
+// import authService from '../../api/auth';
+// import securityService from '../../services/securityService';
+
+// Custom styled components for a more modern look
+const SettingsCard = styled(Paper)(({ theme }) => ({
+  borderRadius: '16px',
+  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.05)',
+  overflow: 'visible',
+  position: 'relative',
+  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+  padding: theme.spacing(3),
+  '&:hover': {
+    boxShadow: '0 12px 28px rgba(0, 0, 0, 0.1)',
+    transform: 'translateY(-4px)'
+  }
+}));
+
+const StyledTab = styled(Tab)(({ theme }) => ({
+  minWidth: 0,
+  fontWeight: 500,
+  marginRight: theme.spacing(4),
+  '&.Mui-selected': {
+    color: theme.palette.primary.main,
+    fontWeight: 700,
+  },
+  '&:hover': {
+    color: theme.palette.primary.main,
+    opacity: 1,
+  },
+  [theme.breakpoints.up('sm')]: {
+    minWidth: 0,
+  },
+}));
+
+const InputField = styled(TextField)(({ theme }) => ({
+  marginBottom: theme.spacing(3),
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '12px',
+    transition: 'all 0.3s ease',
+    '&.Mui-focused': {
+      boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`,
+    }
+  }
+}));
+
+const SettingsButton = styled(Button)(({ theme }) => ({
+  borderRadius: '12px',
+  padding: '10px 24px',
+  textTransform: 'none',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+  fontWeight: 600,
+  '&:hover': {
+    boxShadow: '0 6px 16px rgba(0, 0, 0, 0.15)',
+  },
+}));
+
+const SettingsHeader = styled(Box)(({ theme }) => ({
+  background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.dark} 90%)`,
+  color: theme.palette.common.white,
+  padding: theme.spacing(4, 3),
+  borderRadius: '16px',
+  marginBottom: theme.spacing(4),
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+}));
+
+// TabPanel component to handle tab content display
+function TabPanel({ children, value, index, ...other }) {
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`settings-tabpanel-${index}`}
+      aria-labelledby={`settings-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box sx={{ pt: 3 }}>
+          {children}
+        </Box>
+      )}
+    </div>
+  );
+}
 
 const Settings = () => {
+  const theme = useTheme();
+  
   // User settings state
   const [settings, setSettings] = useState({
     twoFactorEnabled: false,
@@ -24,10 +112,15 @@ const Settings = () => {
     smsNotifications: false,
     autoLocktime: 15, // minutes
     securityLevel: 'high',
-    lastPasswordChange: null
+    lastPasswordChange: null,
+    language: 'english',
+    darkMode: false,
+    currency: 'USD',
+    timeFormat: '12h'
   });
   
   // UI state
+  const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -51,7 +144,8 @@ const Settings = () => {
   useEffect(() => {
     const fetchUserSettings = async () => {
       try {
-        // In a real app, fetch settings from API
+        setLoading(true);
+        // In a real app, fetch settings from API using securityService.getSecuritySettings()
         // For now, simulate a delay and use default settings
         setTimeout(() => {
           setSettings({
@@ -60,7 +154,11 @@ const Settings = () => {
             smsNotifications: false,
             autoLocktime: 15,
             securityLevel: 'high',
-            lastPasswordChange: '2025-03-15T14:30:00Z'
+            lastPasswordChange: '2023-03-15T14:30:00Z',
+            language: 'english',
+            darkMode: false,
+            currency: 'USD',
+            timeFormat: '12h'
           });
           setLoading(false);
         }, 800);
@@ -77,6 +175,10 @@ const Settings = () => {
     
     fetchUserSettings();
   }, []);
+  
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
   
   const handleSettingChange = (setting) => (event) => {
     if (setting === 'twoFactorEnabled') {
@@ -98,50 +200,15 @@ const Settings = () => {
       ...passwordForm,
       [field]: event.target.value
     });
-    
-    // Clear error when user starts typing
-    if (passwordErrors[field]) {
-      setPasswordErrors({
-        ...passwordErrors,
-        [field]: ''
-      });
-    }
-  };
-  
-  const validatePasswordForm = () => {
-    const errors = {};
-    
-    if (!passwordForm.currentPassword) {
-      errors.currentPassword = 'Current password is required';
-    }
-    
-    if (!passwordForm.newPassword) {
-      errors.newPassword = 'New password is required';
-    } else if (passwordForm.newPassword.length < 8) {
-      errors.newPassword = 'Password must be at least 8 characters';
-    } else if (!/(?=.*[0-9])/.test(passwordForm.newPassword)) {
-      errors.newPassword = 'Password must contain at least one number';
-    } else if (!/(?=.*[A-Z])/.test(passwordForm.newPassword)) {
-      errors.newPassword = 'Password must contain at least one uppercase letter';
-    } else if (!/(?=.*[!@#$%^&*])/.test(passwordForm.newPassword)) {
-      errors.newPassword = 'Password must contain at least one special character';
-    }
-    
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
-    }
-    
-    return errors;
   };
   
   const handleSaveSettings = async () => {
-    setSaving(true);
-    
     try {
-      // In a real app, save settings to API
+      setSaving(true);
+      // In a real app, save settings using securityService.updateSecuritySettings(settings)
       // For now, simulate a delay
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      setSaving(false);
       setNotification({
         open: true,
         message: 'Settings saved successfully',
@@ -154,28 +221,32 @@ const Settings = () => {
         message: 'Failed to save settings',
         severity: 'error'
       });
-    } finally {
       setSaving(false);
     }
   };
   
-  const handleUpdatePassword = async () => {
+  const handleChangePassword = async () => {
     // Validate form
-    const errors = validatePasswordForm();
+    const errors = {
+      currentPassword: !passwordForm.currentPassword ? 'Current password is required' : '',
+      newPassword: !passwordForm.newPassword ? 'New password is required' : 
+        passwordForm.newPassword.length < 8 ? 'Password must be at least 8 characters' : '',
+      confirmPassword: passwordForm.newPassword !== passwordForm.confirmPassword ? 
+        'Passwords do not match' : ''
+    };
     
-    if (Object.keys(errors).length > 0) {
-      setPasswordErrors(errors);
+    setPasswordErrors(errors);
+    
+    if (Object.values(errors).some(e => e)) {
       return;
     }
     
-    setSaving(true);
-    
     try {
-      // Call API to update password
-      // For demo, we'll simulate a delay
+      setSaving(true);
+      // In a real app, change password using authService
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Clear form
+      // Reset form
       setPasswordForm({
         currentPassword: '',
         newPassword: '',
@@ -184,40 +255,31 @@ const Settings = () => {
       
       setNotification({
         open: true,
-        message: 'Password updated successfully',
+        message: 'Password changed successfully',
         severity: 'success'
       });
-      
-      // Update last password change date
-      setSettings({
-        ...settings,
-        lastPasswordChange: new Date().toISOString()
-      });
-      
+      setSaving(false);
     } catch (error) {
-      console.error('Failed to update password:', error);
-      setPasswordErrors({
-        ...passwordErrors,
-        currentPassword: 'Current password is incorrect'
-      });
-      
+      console.error('Failed to change password:', error);
       setNotification({
         open: true,
-        message: 'Failed to update password',
+        message: 'Failed to change password',
         severity: 'error'
       });
-    } finally {
       setSaving(false);
     }
   };
   
-  const handleTwoFactorVerify = async () => {
+  const handleVerifyTwoFactor = async () => {
+    if (!verificationCode || verificationCode.length !== 6) {
+      return;
+    }
+    
     try {
-      // Call API to verify 2FA code
-      // For demo, we'll simulate a delay and success
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      setSaving(true);
+      // In a real app, verify 2FA code using securityService
+      await new Promise(resolve => setTimeout(resolve, 800));
       
-      // Update settings with 2FA enabled
       setSettings({
         ...settings,
         twoFactorEnabled: true
@@ -225,262 +287,272 @@ const Settings = () => {
       
       setTwoFactorDialog(false);
       setVerificationCode('');
-      
       setNotification({
         open: true,
         message: 'Two-factor authentication enabled',
         severity: 'success'
       });
-      
+      setSaving(false);
     } catch (error) {
-      console.error('Failed to verify 2FA code:', error);
+      console.error('Failed to enable 2FA:', error);
       setNotification({
         open: true,
-        message: 'Invalid verification code',
+        message: 'Failed to enable two-factor authentication',
         severity: 'error'
       });
+      setSaving(false);
     }
   };
   
-  const handleCloseNotification = (event, reason) => {
-    if (reason === 'clickaway') return;
+  const handleCloseNotification = () => {
     setNotification({ ...notification, open: false });
   };
   
-  const handleCloseTwoFactorDialog = () => {
-    setTwoFactorDialog(false);
-    setVerificationCode('');
+  const formatDateString = (dateString) => {
+    if (!dateString) return 'Never';
+    
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
   };
   
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
-        <CircularProgress />
-      </Box>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4, textAlign: 'center', py: 8 }}>
+        <CircularProgress size={60} />
+        <Typography variant="h6" sx={{ mt: 2 }}>
+          Loading your settings...
+        </Typography>
+      </Container>
     );
   }
   
-  const calculatePasswordStrength = (password) => {
-    if (!password) return 0;
-    
-    let strength = 0;
-    
-    // Length check
-    if (password.length >= 8) strength += 25;
-    
-    // Contains number
-    if (/\d/.test(password)) strength += 25;
-    
-    // Contains lowercase
-    if (/[a-z]/.test(password)) strength += 25;
-    
-    // Contains uppercase
-    if (/[A-Z]/.test(password)) strength += 15;
-    
-    // Contains special char
-    if (/[!@#$%^&*]/.test(password)) strength += 10;
-    
-    return Math.min(100, strength);
-  };
-  
-  const passwordStrength = calculatePasswordStrength(passwordForm.newPassword);
-  
-  const getStrengthColor = (strength) => {
-    if (strength < 30) return 'error';
-    if (strength < 70) return 'warning';
-    return 'success';
-  };
-  
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Settings
-      </Typography>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
+      {/* Settings Header */}
+      <SettingsHeader>
+        <Box display="flex" alignItems="center" mb={1}>
+          <SettingsIcon sx={{ fontSize: 32, mr: 2 }} />
+          <Typography variant="h4" component="h1" fontWeight="700">
+            Account Settings
+          </Typography>
+        </Box>
+        <Typography variant="body1" sx={{ opacity: 0.9, mt: 1 }}>
+          Manage your account preferences and security options
+        </Typography>
+      </SettingsHeader>
       
-      <Grid container spacing={4}>
-        {/* Security Settings Card */}
-        <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Box display="flex" alignItems="center" mb={2}>
-              <SecurityIcon fontSize="large" color="primary" sx={{ mr: 2 }} />
-              <Typography variant="h5" component="h2">
-                Security Settings
-              </Typography>
-            </Box>
-            
+      <SettingsCard>
+        {/* Tabs */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs 
+            value={tabValue} 
+            onChange={handleTabChange} 
+            aria-label="settings tabs"
+            textColor="primary"
+            indicatorColor="primary"
+            sx={{ mb: 1 }}
+          >
+            <StyledTab icon={<SecurityIcon />} iconPosition="start" label="Security & Privacy" />
+            <StyledTab icon={<NotificationsBellIcon />} iconPosition="start" label="Notifications" />
+            <StyledTab icon={<TuneIcon />} iconPosition="start" label="Preferences" />
+            <StyledTab icon={<DevicesIcon />} iconPosition="start" label="Devices" />
+          </Tabs>
+        </Box>
+        
+        {/* Security & Privacy Tab */}
+        <TabPanel value={tabValue} index={0}>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" fontWeight="600" gutterBottom>
+              Security Options
+            </Typography>
             <Divider sx={{ mb: 3 }} />
             
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={settings.twoFactorEnabled}
-                  onChange={handleSettingChange('twoFactorEnabled')}
-                  color="primary"
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={settings.twoFactorEnabled}
+                      onChange={handleSettingChange('twoFactorEnabled')}
+                      color="primary"
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography fontWeight="medium">Two-factor authentication</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Add an extra layer of security to your account
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ display: 'flex', mb: 2 }}
                 />
-              }
-              label="Two-Factor Authentication"
-            />
-            
-            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-              Add an extra layer of security by requiring a verification code.
-            </Typography>
-            
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={settings.securityLevel === 'high'}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    securityLevel: e.target.checked ? 'high' : 'medium'
-                  })}
-                  color="primary"
+                
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={settings.securityLevel === 'high'}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        securityLevel: e.target.checked ? 'high' : 'medium'
+                      })}
+                      color="primary"
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography fontWeight="medium">Enhanced security checks</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Enable additional security verification for sensitive operations
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ display: 'flex', mb: 2 }}
                 />
-              }
-              label="Enhanced Security Features"
-            />
+              </Grid>
+              
+              <Grid item xs={12} md={6}>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="body2" gutterBottom>
+                    Auto-lock timeout (minutes)
+                  </Typography>
+                  <TextField
+                    type="number"
+                    value={settings.autoLocktime}
+                    onChange={handleSettingChange('autoLocktime')}
+                    fullWidth
+                    variant="outlined"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <LockIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    Your account will automatically lock after this period of inactivity
+                  </Typography>
+                </Box>
+                
+                <Box>
+                  <Typography variant="body2" gutterBottom>
+                    Last password change:
+                  </Typography>
+                  <Typography fontWeight="medium">
+                    {formatDateString(settings.lastPasswordChange)}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
             
-            <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-              Enable additional security measures like login notifications and suspicious activity alerts.
-            </Typography>
-            
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Auto-Lock Timeout (minutes):
-              </Typography>
-              <TextField
-                type="number"
-                value={settings.autoLocktime}
-                onChange={handleSettingChange('autoLocktime')}
-                size="small"
-                inputProps={{ min: 1, max: 60 }}
-                sx={{ width: 100 }}
-              />
-            </Box>
-            
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleSaveSettings}
-              disabled={saving}
-            >
-              {saving ? 'Saving...' : 'Save Security Settings'}
-            </Button>
-          </Paper>
-        </Grid>
-        
-        {/* Password Change Card */}
-        <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Box display="flex" alignItems="center" mb={2}>
-              <LockIcon fontSize="large" color="primary" sx={{ mr: 2 }} />
-              <Typography variant="h5" component="h2">
+            <Box sx={{ mt: 4, mb: 4 }}>
+              <Typography variant="h6" fontWeight="600" gutterBottom>
                 Change Password
               </Typography>
-            </Box>
-            
-            <Divider sx={{ mb: 3 }} />
-            
-            <Box sx={{ mb: 3 }}>
-              <TextField
-                label="Current Password"
-                type={showCurrentPassword ? 'text' : 'password'}
-                fullWidth
-                margin="normal"
-                value={passwordForm.currentPassword}
-                onChange={handlePasswordChange('currentPassword')}
-                error={!!passwordErrors.currentPassword}
-                helperText={passwordErrors.currentPassword}
-                InputProps={{
-                  endAdornment: (
-                    <IconButton
-                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      edge="end"
-                    >
-                      {showCurrentPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                    </IconButton>
-                  )
-                }}
-              />
+              <Divider sx={{ mb: 3 }} />
               
-              <TextField
-                label="New Password"
-                type={showNewPassword ? 'text' : 'password'}
-                fullWidth
-                margin="normal"
-                value={passwordForm.newPassword}
-                onChange={handlePasswordChange('newPassword')}
-                error={!!passwordErrors.newPassword}
-                helperText={passwordErrors.newPassword}
-                InputProps={{
-                  endAdornment: (
-                    <IconButton
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      edge="end"
-                    >
-                      {showNewPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                    </IconButton>
-                  )
-                }}
-              />
-              
-              {passwordForm.newPassword && (
-                <Box sx={{ mt: 1, mb: 2 }}>
-                  <Typography variant="body2" gutterBottom>
-                    Password Strength:
-                  </Typography>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={passwordStrength} 
-                    color={getStrengthColor(passwordStrength)}
-                    sx={{ height: 8, borderRadius: 4 }}
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={4}>
+                  <InputField
+                    label="Current Password"
+                    type={showCurrentPassword ? 'text' : 'password'}
+                    value={passwordForm.currentPassword}
+                    onChange={handlePasswordChange('currentPassword')}
+                    error={Boolean(passwordErrors.currentPassword)}
+                    helperText={passwordErrors.currentPassword}
+                    fullWidth
+                    required
+                    variant="outlined"
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label="toggle password visibility"
+                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                            edge="end"
+                          >
+                            {showCurrentPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
                   />
-                </Box>
-              )}
+                </Grid>
+                
+                <Grid item xs={12} md={4}>
+                  <InputField
+                    label="New Password"
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={passwordForm.newPassword}
+                    onChange={handlePasswordChange('newPassword')}
+                    error={Boolean(passwordErrors.newPassword)}
+                    helperText={passwordErrors.newPassword}
+                    fullWidth
+                    required
+                    variant="outlined"
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label="toggle password visibility"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            edge="end"
+                          >
+                            {showNewPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} md={4}>
+                  <InputField
+                    label="Confirm New Password"
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={handlePasswordChange('confirmPassword')}
+                    error={Boolean(passwordErrors.confirmPassword)}
+                    helperText={passwordErrors.confirmPassword}
+                    fullWidth
+                    required
+                    variant="outlined"
+                  />
+                </Grid>
+              </Grid>
               
-              <TextField
-                label="Confirm New Password"
-                type="password"
-                fullWidth
-                margin="normal"
-                value={passwordForm.confirmPassword}
-                onChange={handlePasswordChange('confirmPassword')}
-                error={!!passwordErrors.confirmPassword}
-                helperText={passwordErrors.confirmPassword}
-              />
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                <SettingsButton
+                  variant="contained"
+                  color="primary"
+                  onClick={handleChangePassword}
+                  disabled={saving}
+                  startIcon={<LockIcon />}
+                >
+                  {saving ? 'Changing...' : 'Change Password'}
+                </SettingsButton>
+              </Box>
             </Box>
-            
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="body2" color="textSecondary">
-                Last password change: {settings.lastPasswordChange ? 
-                  new Date(settings.lastPasswordChange).toLocaleDateString() : 'Never'}
-              </Typography>
-            </Box>
-            
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleUpdatePassword}
-              disabled={saving}
-            >
-              {saving ? 'Updating...' : 'Update Password'}
-            </Button>
-          </Paper>
-        </Grid>
+          </Box>
+        </TabPanel>
         
-        {/* Notification Settings Card */}
-        <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Box display="flex" alignItems="center" mb={2}>
-              <NotificationsIcon fontSize="large" color="primary" sx={{ mr: 2 }} />
-              <Typography variant="h5" component="h2">
-                Notification Settings
-              </Typography>
-            </Box>
-            
+        {/* Notifications Tab */}
+        <TabPanel value={tabValue} index={1}>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" fontWeight="600" gutterBottom>
+              Notification Preferences
+            </Typography>
             <Divider sx={{ mb: 3 }} />
             
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
                 <FormControlLabel
                   control={
                     <Switch
@@ -489,14 +561,17 @@ const Settings = () => {
                       color="primary"
                     />
                   }
-                  label="Email Notifications"
+                  label={
+                    <Box>
+                      <Typography fontWeight="medium">Email notifications</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Receive important account updates via email
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ display: 'flex', mb: 2 }}
                 />
-                <Typography variant="body2" color="textSecondary" sx={{ ml: 3, mb: 2 }}>
-                  Receive notifications about transactions and account activities via email.
-                </Typography>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
+                
                 <FormControlLabel
                   control={
                     <Switch
@@ -505,66 +580,241 @@ const Settings = () => {
                       color="primary"
                     />
                   }
-                  label="SMS Notifications"
+                  label={
+                    <Box>
+                      <Typography fontWeight="medium">SMS notifications</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Receive alerts and codes via text message
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ display: 'flex', mb: 2 }}
                 />
-                <Typography variant="body2" color="textSecondary" sx={{ ml: 3, mb: 2 }}>
-                  Receive notifications about transactions and account activities via SMS.
+              </Grid>
+              
+              <Grid item xs={12} md={6}>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Transaction notifications are always enabled for security reasons.
+                </Alert>
+                
+                <Typography variant="body2" color="text.secondary">
+                  We're working on enhanced notification settings to give you more control over your alerts.
+                  Stay tuned for updates!
                 </Typography>
               </Grid>
             </Grid>
+          </Box>
+        </TabPanel>
+        
+        {/* Preferences Tab */}
+        <TabPanel value={tabValue} index={2}>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" fontWeight="600" gutterBottom>
+              Display & Regional Settings
+            </Typography>
+            <Divider sx={{ mb: 3 }} />
             
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleSaveSettings}
-              disabled={saving}
-              sx={{ mt: 2 }}
-            >
-              {saving ? 'Saving...' : 'Save Notification Settings'}
-            </Button>
-          </Paper>
-        </Grid>
-      </Grid>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <InputField
+                  select
+                  label="Language"
+                  value={settings.language}
+                  onChange={handleSettingChange('language')}
+                  fullWidth
+                  variant="outlined"
+                  SelectProps={{
+                    native: true,
+                  }}
+                >
+                  <option value="english">English</option>
+                  <option value="spanish">Spanish</option>
+                  <option value="french">French</option>
+                  <option value="german">German</option>
+                  <option value="chinese">Chinese</option>
+                </InputField>
+                
+                <InputField
+                  select
+                  label="Currency"
+                  value={settings.currency}
+                  onChange={handleSettingChange('currency')}
+                  fullWidth
+                  variant="outlined"
+                  SelectProps={{
+                    native: true,
+                  }}
+                >
+                  <option value="USD">USD - US Dollar</option>
+                  <option value="EUR">EUR - Euro</option>
+                  <option value="GBP">GBP - British Pound</option>
+                  <option value="JPY">JPY - Japanese Yen</option>
+                  <option value="CAD">CAD - Canadian Dollar</option>
+                </InputField>
+              </Grid>
+              
+              <Grid item xs={12} md={6}>
+                <InputField
+                  select
+                  label="Time Format"
+                  value={settings.timeFormat}
+                  onChange={handleSettingChange('timeFormat')}
+                  fullWidth
+                  variant="outlined"
+                  SelectProps={{
+                    native: true,
+                  }}
+                >
+                  <option value="12h">12-hour (AM/PM)</option>
+                  <option value="24h">24-hour</option>
+                </InputField>
+                
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={settings.darkMode}
+                      onChange={handleSettingChange('darkMode')}
+                      color="primary"
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography fontWeight="medium">Dark Mode</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Use dark theme for the application
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ display: 'flex', mt: 2 }}
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        </TabPanel>
+        
+        {/* Devices Tab */}
+        <TabPanel value={tabValue} index={3}>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" fontWeight="600" gutterBottom>
+              Connected Devices
+            </Typography>
+            <Divider sx={{ mb: 3 }} />
+            
+            <Alert severity="info" sx={{ mb: 3 }}>
+              This section shows devices that have accessed your account. For security, you can review and manage this list.
+            </Alert>
+            
+            <Paper elevation={0} sx={{ p: 3, bgcolor: alpha(theme.palette.primary.light, 0.05), borderRadius: 2, mb: 2 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography variant="subtitle1" fontWeight="medium">Current Device</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Chrome on Windows • Last accessed: Today, {new Date().toLocaleTimeString()}
+                  </Typography>
+                </Box>
+                <Typography variant="caption" sx={{ 
+                  bgcolor: 'success.light', 
+                  color: 'success.dark',
+                  py: 0.5,
+                  px: 1.5,
+                  borderRadius: 10,
+                  fontWeight: 'medium'
+                }}>
+                  Active Now
+                </Typography>
+              </Box>
+            </Paper>
+            
+            <Paper elevation={0} sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.5)}`, mb: 2 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography variant="subtitle1" fontWeight="medium">iPhone 13</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Safari on iOS • Last accessed: Yesterday, 14:32
+                  </Typography>
+                </Box>
+                <Button color="error" size="small">
+                  Remove
+                </Button>
+              </Box>
+            </Paper>
+            
+            <Paper elevation={0} sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.5)}` }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography variant="subtitle1" fontWeight="medium">MacBook Pro</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Chrome on macOS • Last accessed: 3 days ago
+                  </Typography>
+                </Box>
+                <Button color="error" size="small">
+                  Remove
+                </Button>
+              </Box>
+            </Paper>
+          </Box>
+        </TabPanel>
+        
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4 }}>
+          <SettingsButton
+            variant="outlined"
+            color="inherit"
+            sx={{ mr: 2 }}
+          >
+            Cancel
+          </SettingsButton>
+          <SettingsButton
+            variant="contained"
+            color="primary"
+            onClick={handleSaveSettings}
+            disabled={saving}
+            startIcon={<SaveIcon />}
+          >
+            {saving ? 'Saving...' : 'Save Settings'}
+          </SettingsButton>
+        </Box>
+      </SettingsCard>
       
-      {/* Two-Factor Authentication Dialog */}
-      <Dialog open={twoFactorDialog} onClose={handleCloseTwoFactorDialog}>
+      {/* Two-factor authentication dialog */}
+      <Dialog open={twoFactorDialog} onClose={() => setTwoFactorDialog(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Enable Two-Factor Authentication</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            We've sent a verification code to your email address. Please enter the code to enable two-factor authentication.
+          <DialogContentText sx={{ mb: 2 }}>
+            Enter the 6-digit verification code sent to your email to enable two-factor authentication.
           </DialogContentText>
           <TextField
-            autoFocus
-            margin="dense"
             label="Verification Code"
-            type="text"
-            fullWidth
             value={verificationCode}
             onChange={(e) => setVerificationCode(e.target.value)}
+            fullWidth
+            variant="outlined"
+            inputProps={{ maxLength: 6 }}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseTwoFactorDialog}>Cancel</Button>
+          <Button onClick={() => setTwoFactorDialog(false)}>Cancel</Button>
           <Button 
-            onClick={handleTwoFactorVerify} 
+            onClick={handleVerifyTwoFactor}
+            variant="contained" 
             color="primary"
-            disabled={!verificationCode || verificationCode.length < 6}
+            disabled={!verificationCode || verificationCode.length !== 6 || saving}
           >
-            Verify
+            {saving ? 'Verifying...' : 'Verify'}
           </Button>
         </DialogActions>
       </Dialog>
       
-      {/* Notification Snackbar */}
+      {/* Notification snackbar */}
       <Snackbar
         open={notification.open}
         autoHideDuration={6000}
         onClose={handleCloseNotification}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert 
           onClose={handleCloseNotification} 
           severity={notification.severity}
+          variant="filled"
           sx={{ width: '100%' }}
         >
           {notification.message}

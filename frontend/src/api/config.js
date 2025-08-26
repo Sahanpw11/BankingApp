@@ -7,19 +7,30 @@
 
 import CryptoJS from 'crypto-js';
 
-// Base API URL
-const API_URL = 'http://localhost:5000';  // Make sure this is correct
+// Base API URL - auto-detect protocol and use HTTPS when available
+const getApiUrl = () => {
+  // Check if we're in development and if HTTPS certificates are available
+  const isHttpsAvailable = window.location.protocol === 'https:' || 
+                          process.env.REACT_APP_USE_HTTPS === 'true';
+  
+  if (isHttpsAvailable) {
+    return 'https://localhost:5443';  // HTTPS port
+  }
+  return 'http://localhost:5000';     // HTTP fallback
+};
+
+const API_URL = getApiUrl();
 
 // API endpoints
 const endpoints = {
   // Auth endpoints
   login: `${API_URL}/api/auth/login`,
   register: `${API_URL}/api/auth/register`,
-  refreshToken: `${API_URL}/api/auth/refresh-token`,
-  forgotPassword: `${API_URL}/api/auth/forgot-password`,
+  refreshToken: `${API_URL}/api/auth/refresh-token`,  forgotPassword: `${API_URL}/api/auth/forgot-password`,
   resetPassword: `${API_URL}/api/auth/reset-password`,
   profile: `${API_URL}/api/auth/profile`,
   updateProfile: `${API_URL}/api/auth/profile`,
+  changePassword: `${API_URL}/api/auth/change-password`,
   
   // Account endpoints
   accounts: `${API_URL}/api/accounts`,

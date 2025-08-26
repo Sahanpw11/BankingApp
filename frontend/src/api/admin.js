@@ -68,8 +68,24 @@ class AdminService {
       }
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to get user details');
+        // Try to parse as JSON, but handle non-JSON responses
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to get user details');
+        } else {
+          const textError = await response.text();
+          console.error('Non-JSON error response:', textError);
+          throw new Error(`Server error (${response.status}): Failed to get user details`);
+        }
+      }
+      
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('Non-JSON success response:', textResponse);
+        throw new Error('Invalid response format from server');
       }
       
       return await response.json();
@@ -145,7 +161,39 @@ class AdminService {
         throw new Error(errorData.message || 'Failed to get accounts');
       }
       
-      return await response.json();
+      // Get the accounts data
+      const accountsData = await response.json();
+      
+      // Fetch all users to associate with accounts
+      const usersResponse = await this.getAllUsers();
+      const users = usersResponse.users;
+      
+      // Create a user lookup map
+      const userMap = {};
+      users.forEach(user => {
+        userMap[user.id] = user;
+      });
+      
+      // Enrich accounts data with owner information
+      const enrichedAccounts = accountsData.accounts.map(account => {
+        const owner = userMap[account.user_id];
+        return {
+          id: account.id,
+          accountNumber: account.account_number,
+          accountType: account.account_type,
+          balance: account.balance,
+          currency: account.currency,
+          isActive: account.is_active,
+          createdAt: account.created_at,
+          userId: account.user_id,
+          ownerName: owner ? `${owner.firstName} ${owner.lastName}` : 'Unknown',
+          ownerEmail: owner ? owner.email : 'Unknown'
+        };
+      });
+      
+      return {
+        accounts: enrichedAccounts
+      };
     } catch (error) {
       console.error('Fetch accounts error:', error);
       throw error;

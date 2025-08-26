@@ -10,7 +10,6 @@ from app.security.digital_signature import hash_data
 from app.security.transaction_signer import sign_bank_transaction
 from datetime import datetime
 import logging
-import uuid
 
 transaction_bp = Blueprint('transaction', __name__)
 
@@ -104,13 +103,13 @@ def transfer_money():
             destination_account = Account.query.get(data['destination_account_id'])
             if not destination_account:
                 return jsonify({'message': 'Destination account not found'}), 404
-              # Create transaction
+            
+            # Create transaction
             transaction = Transaction(
                 transaction_type='transfer',
                 source_account_id=source_account.id,
                 destination_account_id=destination_account.id,
-                description=data.get('description', 'Funds transfer'),
-                reference=data.get('reference') or f"TRF-{uuid.uuid4().hex[:8].upper()}"
+                description=data.get('description', 'Funds transfer')
             )
             transaction.amount = amount  # This uses the property to encrypt the amount
             
@@ -121,13 +120,14 @@ def transfer_money():
         elif is_external:
             # External transfer to another bank
             destination_number = data['destination_account_number']
-              # Create transaction WITH destination_account_id pointing to the system account
+            
+            # Create transaction WITH destination_account_id pointing to the system account
             transaction = Transaction(
                 transaction_type='external_transfer',
                 source_account_id=source_account.id,
                 destination_account_id=external_system_account.id,  # Use system account as destination
                 description=data.get('description', 'External funds transfer'),
-                reference=data.get('reference') or f"EXT-{uuid.uuid4().hex[:8].upper()}"
+                reference=data.get('reference')
             )
             transaction.amount = amount
             
@@ -138,39 +138,19 @@ def transfer_money():
             transaction.meta_data = {
                 'destination_account_number': destination_number,
                 'beneficiary_id': data.get('beneficiary_id'),
-                'transaction_type': data.get('transaction_type', 'external_transfer')            }
+                'transaction_type': data.get('transaction_type', 'external_transfer')
+            }
         else:
             return jsonify({'message': 'Either destination_account_id or destination_account_number must be provided'}), 400
             
         transaction.status = 'completed'
         transaction.completed_at = datetime.utcnow()
         
+        # Add digital signature to the transaction
+        sign_bank_transaction(transaction)
+        
         db.session.add(transaction)
-        
-        # Retry database commit if it fails due to locking
-        retry_count = 0
-        max_retries = 3
-        success = False
-        
-        while retry_count < max_retries and not success:
-            try:
-                db.session.commit()
-                success = True
-                # Add digital signature to the transaction AFTER commit when ID is available
-                sign_bank_transaction(transaction)
-                # Commit the signature
-                db.session.commit()
-            except Exception as e:
-                # Log the error
-                logging.error(f"Transfer commit error: {str(e)}")
-                # Roll back the session
-                db.session.rollback()
-                # Increment retry counter
-                retry_count += 1
-                # If we've reached max retries, raise the exception
-                if retry_count >= max_retries:
-                    logging.error("Max retries reached for transfer commit")
-                    raise
+        db.session.commit()
         
         return jsonify({
             'message': 'Transfer completed successfully',
@@ -228,13 +208,14 @@ def create_bill_payment():
         
         # Is this payment due now or in the future?
         is_immediate = payment_date.date() <= datetime.utcnow().date()
-          # Create the transaction
+        
+        # Create the transaction
         transaction = Transaction(
             transaction_type='payment',
             source_account_id=source_account.id,
             description=data.get('description', f"Payment to {biller.name}"),
             status='completed' if is_immediate else 'scheduled',
-            reference=data.get('reference_number') or f"PAY-{uuid.uuid4().hex[:6].upper()}"
+            reference=data.get('reference_number')
         )
         transaction.amount = amount  # This uses the property to encrypt the amount
         
@@ -251,7 +232,8 @@ def create_bill_payment():
             'is_recurring': data.get('is_recurring', False),
             'frequency': data.get('frequency'),
             'end_date': data.get('end_date'),
-            'payment_date': payment_date.isoformat()        }
+            'payment_date': payment_date.isoformat()
+        }
         
         db.session.add(transaction)
         
@@ -264,30 +246,10 @@ def create_bill_payment():
         # If this is a recurring payment, we would normally create a schedule here
         # But for now, we'll just store the info in the transaction metadata
         
-        # Retry database commit if it fails due to locking
-        retry_count = 0
-        max_retries = 3
-        success = False
+        # Add digital signature to the payment transaction
+        sign_bank_transaction(transaction)
         
-        while retry_count < max_retries and not success:
-            try:
-                db.session.commit()
-                success = True
-                # Add digital signature to the payment transaction AFTER commit when ID is available
-                sign_bank_transaction(transaction)
-                # Commit the signature
-                db.session.commit()
-            except Exception as e:
-                # Log the error
-                logging.error(f"Payment commit error: {str(e)}")
-                # Roll back the session
-                db.session.rollback()
-                # Increment retry counter
-                retry_count += 1
-                # If we've reached max retries, raise the exception
-                if retry_count >= max_retries:
-                    logging.error("Max retries reached for payment commit")
-                    raise
+        db.session.commit()
         
         return jsonify({
             'message': 'Payment successful',

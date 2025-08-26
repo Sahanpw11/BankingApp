@@ -1,0 +1,25 @@
+# BankingApp3 Requirements
+
+# Core dependencies
+Flask==2.0.1
+Flask-SQLAlchemy==2.5.1
+Flask-JWT-Extended==4.3.1
+Flask-Bcrypt==0.7.1
+Flask-CORS==3.0.10
+SQLAlchemy==1.4.23
+
+# Security dependencies
+cryptography==36.0.2
+pyotp==2.6.0
+qrcode==7.3.1
+Pillow==9.0.1
+
+# Utility dependencies
+python-dateutil==2.8.2
+requests==2.27.1
+PyJWT==2.3.0
+
+# Development dependencies
+pytest==7.0.0
+black==22.1.0
+flake8==4.0.1

@@ -390,9 +390,32 @@ const AccountManagement = () => {
                   </Typography>
                   
                   <Typography variant="subtitle2" color="textSecondary">Owner</Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {selectedAccount.ownerName || "N/A"}
-                  </Typography>
+                  <Box display="flex" alignItems="center" mt={0.5} mb={1}>
+                    <Typography variant="body1">
+                      {selectedAccount.ownerName || "N/A"}
+                    </Typography>
+                    {selectedAccount.userId && (
+                      <Button 
+                        size="small" 
+                        variant="outlined" 
+                        sx={{ ml: 1 }}
+                        onClick={() => {
+                          window.open(`/admin/users/${selectedAccount.userId}`, '_blank');
+                        }}
+                      >
+                        View User
+                      </Button>
+                    )}
+                  </Box>
+                  
+                  {selectedAccount.ownerEmail && (
+                    <>
+                      <Typography variant="subtitle2" color="textSecondary">Owner Email</Typography>
+                      <Typography variant="body1" gutterBottom>
+                        {selectedAccount.ownerEmail}
+                      </Typography>
+                    </>
+                  )}
                 </Grid>
                 
                 <Grid item xs={12} md={6}>

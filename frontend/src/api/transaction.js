@@ -155,26 +155,42 @@ export const getTransactionById = async (transactionId, forceRefresh = false) =>
 export const createTransfer = async (transactionData) => {
   console.log('[TRANSACTION API] Creating transfer with data:', transactionData);
   try {
-    const response = await apiClient.post('/transactions/transfer', transactionData);
+    // Convert camelCase to snake_case for backend API
+    const apiData = {
+      ...transactionData,
+      // Map to backend expected field names
+      source_account_id: transactionData.source_account_id || transactionData.sourceAccountId,
+      destination_account_id: transactionData.destination_account_id || transactionData.destinationAccountId,
+    };
+    
+    console.log('[TRANSACTION API] Transformed transfer data:', apiData);
+    const response = await apiClient.post('/transactions/transfer', apiData);
     console.log('[TRANSACTION API] Transfer created successfully:', response.data);
     
     // Invalidate transactions cache after creating a transfer
     transactionCache.transactions.data = null;
     // Invalidate account transactions caches
-    if (transactionData.sourceAccountId) {
+    if (transactionData.sourceAccountId || transactionData.source_account_id) {
+      const sourceId = transactionData.source_account_id || transactionData.sourceAccountId;
       Object.keys(transactionCache.accountTransactions)
-        .filter(key => key.startsWith(transactionData.sourceAccountId))
+        .filter(key => key.startsWith(sourceId))
         .forEach(key => delete transactionCache.accountTransactions[key]);
     }
-    if (transactionData.destinationAccountId) {
+    if (transactionData.destinationAccountId || transactionData.destination_account_id) {
+      const destId = transactionData.destination_account_id || transactionData.destinationAccountId;
       Object.keys(transactionCache.accountTransactions)
-        .filter(key => key.startsWith(transactionData.destinationAccountId))
+        .filter(key => key.startsWith(destId))
         .forEach(key => delete transactionCache.accountTransactions[key]);
     }
     
-    return response.data;
-  } catch (error) {
+    return response.data;  } catch (error) {
     console.error('[TRANSACTION API] Error creating transfer:', error);
+    // Enhance error message with details if available
+    if (error.response?.data?.message) {
+      const enhancedError = new Error(`Transfer failed: ${error.response.data.message}`);
+      enhancedError.originalError = error;
+      throw enhancedError;
+    }
     throw error;
   }
 };

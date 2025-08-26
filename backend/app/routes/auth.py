@@ -5,6 +5,7 @@ from flask_jwt_extended import (
 )
 from app import db, bcrypt
 from app.models.user import User
+from app.models.security_settings import SecuritySettings
 from datetime import datetime
 import logging
 
@@ -34,6 +35,18 @@ def register():
         new_user.password = data['password']  # This uses the password setter
         
         db.session.add(new_user)
+        db.session.flush()  # Get the user ID without committing yet
+        
+        # Create default security settings for the user
+        security_settings = SecuritySettings(
+            user_id=new_user.id,
+            two_factor_enabled=False,
+            email_notifications=True,
+            sms_notifications=False,
+            auto_locktime=15,
+            security_level='medium'
+        )
+        db.session.add(security_settings)
         db.session.commit()
         
         return jsonify({
@@ -87,10 +100,29 @@ def login():
         if not password_match:
             logging.error(f"Invalid password for user: {user.username}")
             return jsonify({'message': 'Invalid credentials'}), 401
-        
-        # Update last login time
+          # Update last login time with retry mechanism
         user.last_login = datetime.utcnow()
-        db.session.commit()
+        user.updated_at = datetime.utcnow()
+        
+        # Retry database commit if it fails due to locking
+        retry_count = 0
+        max_retries = 3
+        success = False
+        
+        while retry_count < max_retries and not success:
+            try:
+                db.session.commit()
+                success = True
+            except Exception as e:
+                # Log the error
+                logging.error(f"Login error: {str(e)}")
+                # Roll back the session
+                db.session.rollback()
+                # Increment retry counter
+                retry_count += 1
+                # If we've reached max retries, continue without throwing error
+                if retry_count >= max_retries:
+                    logging.warning("Max retries reached for updating last login time")
         
         # Create tokens
         access_token = create_access_token(identity=user.id)
@@ -182,18 +214,41 @@ def update_profile():
     data = request.get_json()
     
     # Only allow updating certain fields
-    if 'firstName' in data:
-        user.first_name = data['firstName']
-    if 'lastName' in data:
-        user.last_name = data['lastName']
-    if 'phoneNumber' in data:
-        user.phone_number = data['phoneNumber']
+    if 'first_name' in data:
+        user.first_name = data['first_name']
+    if 'last_name' in data:
+        user.last_name = data['last_name']
+    if 'phone' in data:
+        user.phone_number = data['phone']
     if 'address' in data:
         user.address = data['address']
+    if 'date_of_birth' in data and data['date_of_birth']:
+        try:
+            from datetime import datetime, date
+            # Handle different date formats
+            if 'T' in data['date_of_birth']:
+                # ISO format
+                user.date_of_birth = datetime.fromisoformat(
+                    data['date_of_birth'].replace('Z', '+00:00')
+                ).date()
+            else:
+                # YYYY-MM-DD format
+                user.date_of_birth = date.fromisoformat(data['date_of_birth'])
+        except ValueError:
+            return jsonify({'message': 'Invalid date format'}), 400
+    if 'occupation' in data:
+        user.occupation = data['occupation']
+    if 'security_question' in data:
+        user.security_question = data['security_question']
+    if 'security_answer' in data:
+        user.security_answer = data['security_answer']
     
     db.session.commit()
     
-    return jsonify({'message': 'Profile updated successfully'}), 200
+    return jsonify({
+        'message': 'Profile updated successfully',
+        'user': user.to_dict()
+    }), 200
 
 @auth_bp.route('/change-password', methods=['POST'])
 @jwt_required()
@@ -206,10 +261,16 @@ def change_password():
     
     data = request.get_json()
     
-    if not user.check_password(data['currentPassword']):
+    # Check if the required fields are present
+    if 'current_password' not in data or 'new_password' not in data:
+        return jsonify({'message': 'Missing required fields'}), 400
+    
+    if not user.check_password(data['current_password']):
         return jsonify({'message': 'Current password is incorrect'}), 401
     
-    user.set_password(data['newPassword'])
+    # Update password using the password setter property
+    user.password = data['new_password']
+    user.password_updated_at = datetime.utcnow()
     db.session.commit()
     
     return jsonify({'message': 'Password changed successfully'}), 200

@@ -1,0 +1,271 @@
+# Banking App - Comprehensive Git Ignore File
+# Generated on August 26, 2025
+
+# ================================
+# Python / Flask Backend
+# ================================
+
+# Python virtual environment
+venv/
+env/
+.env/
+ENV/
+.venv/
+venv.bak/
+env.bak/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.Python
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg
+MANIFEST
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Flask specific
+instance/
+.webassets-cache
+
+# Local development settings
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database files
+*.db
+*.sqlite3
+banking.db
+instance/banking.db
+
+# PostgreSQL dumps
+*.sql
+*.dump
+
+# Migration logs
+migration.log
+*.migration.log
+
+# ================================
+# Node.js / React Frontend
+# ================================
+
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Production builds
+/build
+/dist
+
+# React/Node logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Temporary folders
+tmp/
+temp/
+
+# ================================
+# Security & Certificates
+# ================================
+
+# SSL Certificates
+certificates/*.crt
+certificates/*.key
+certificates/*.pem
+certificates/*.p12
+certificates/*.jks
+
+# Private keys
+*.key
+*.pem
+private_key.*
+public_key.*
+
+# Environment files with secrets
+config.env
+secrets.env
+
+# ================================
+# IDE & Development Tools
+# ================================
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# PyCharm
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# ================================
+# Operating System Files
+# ================================
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ================================
+# Logs & Temporary Files
+# ================================
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Cache files
+*.cache
+cache/
+.cache/
+
+# ================================
+# Banking App Specific
+# ================================
+
+# Transaction data exports
+transaction_exports/
+*.csv
+*.xlsx
+
+# Backup files
+*.bak
+*.backup
+backup_*/
+
+# External repositories
+external-*/
+cloned-*/
+
+# Demo credentials (optional - uncomment if needed)
+# demo_credentials.txt
+# test_users.json
+
+# ================================
+# Archive & Compressed Files
+# ================================
+
+# Compressed files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip

@@ -1,9 +1,11 @@
 import React from 'react';
 import { 
   ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, 
-  Tooltip, Legend, Sector
+  Tooltip 
 } from 'recharts';
 import { useTheme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
 
 /**
  * Pie chart component using Recharts
@@ -17,90 +19,128 @@ import { useTheme } from '@mui/material/styles';
 const PieChart = ({ 
   data, 
   dataKey = 'value', 
-  nameKey = 'name', 
-  colors = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658']
+  nameKey = 'name',
+  title,
+  colors = ['#0088FE', '#00C49F', '#FFBB28'] 
 }) => {
   const theme = useTheme();
-  const [activeIndex, setActiveIndex] = React.useState(-1);
   
-  const onPieEnter = (_, index) => {
-    setActiveIndex(index);
-  };
-  
-  const onPieLeave = () => {
-    setActiveIndex(-1);
-  };
-  
-  const renderActiveShape = (props) => {
-    const { 
-      cx, cy, innerRadius, outerRadius, startAngle, endAngle,
-      fill
-      // eslint-disable-next-line no-unused-vars
-      // payload, percent, value are unused but kept for documentation purposes
-    } = props;
-  
+  // Don't render if no data is provided
+  if (!data || data.length === 0) {
     return (
-      <g>
-        <Sector
-          cx={cx}
-          cy={cy}
-          innerRadius={innerRadius}
-          outerRadius={outerRadius + 10}
-          startAngle={startAngle}
-          endAngle={endAngle}
-          fill={fill}
-        />
-        <Sector
-          cx={cx}
-          cy={cy}
-          startAngle={startAngle}
-          endAngle={endAngle}
-          innerRadius={outerRadius + 6}
-          outerRadius={outerRadius + 10}
-          fill={fill}
-        />
-      </g>
+      <Box sx={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Typography variant="body1" color="text.secondary">No data available</Typography>
+      </Box>
     );
+  }
+
+  // Format currency for display
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(amount);
   };
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <RechartsPieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          labelLine={false}
-          outerRadius={80}
-          innerRadius={50}
-          dataKey={dataKey}
-          nameKey={nameKey}
-          activeIndex={activeIndex}
-          activeShape={renderActiveShape}
-          onMouseEnter={onPieEnter}
-          onMouseLeave={onPieLeave}
-        >
-          {data.map((entry, index) => (
-            <Cell 
-              key={`cell-${index}`} 
-              fill={colors[index % colors.length]} 
+    <Box sx={{ width: '100%', textAlign: 'center' }}>
+      <Typography 
+        variant="h6" 
+        align="center" 
+        sx={{ 
+          fontWeight: 'bold',
+          fontSize: '1.25rem',
+          mb: 2
+        }}
+      >
+        {title}
+      </Typography>
+      
+      <Box sx={{ 
+        height: 140, 
+        width: '100%',
+        position: 'relative',
+        mb: 3
+      }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <RechartsPieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              startAngle={90}
+              endAngle={-270}
+              outerRadius={55}
+              innerRadius={35}
+              dataKey={dataKey}
+              strokeWidth={0}
+            >
+              {data.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={colors[index % colors.length]} 
+                  stroke="none"
+                />
+              ))}
+            </Pie>
+            <Tooltip 
+              formatter={(value) => formatCurrency(value)}
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 4,
+                padding: '4px 8px',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+              }}
             />
-          ))}
-        </Pie>
-        <Tooltip 
-          formatter={(value) => [`$${value.toFixed(2)}`, 'Amount']}
-          contentStyle={{
-            backgroundColor: theme.palette.background.paper,
-            border: `1px solid ${theme.palette.divider}`
-          }}
-        />
-        <Legend 
-          formatter={(value) => (
-            <span style={{ color: theme.palette.text.primary }}>{value}</span>
-          )}
-        />
-      </RechartsPieChart>
-    </ResponsiveContainer>
+          </RechartsPieChart>
+        </ResponsiveContainer>
+      </Box>
+      
+      {/* Legend with squares and dollar amounts */}
+      <Box 
+        sx={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1,
+          pl: 3
+        }}
+      >
+        {data.map((entry, index) => (
+          <Box 
+            key={`legend-${index}`} 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              justifyContent: 'flex-start'
+            }}
+          >
+            <Box 
+              sx={{ 
+                width: 16, 
+                height: 16, 
+                backgroundColor: colors[index % colors.length],
+                mr: 1
+              }} 
+            />
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                mr: 'auto',
+                minWidth: '70px',
+                fontWeight: 500
+              }}
+            >
+              {entry[nameKey]}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              ${entry[dataKey].toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    </Box>
   );
 };
 

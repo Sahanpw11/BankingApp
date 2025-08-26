@@ -7,9 +7,26 @@ class Config:
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'your-jwt-secret-key-for-dev-only'
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
+      # Database settings
+    # PostgreSQL connection parameters
+    POSTGRES_SERVER = os.environ.get("POSTGRES_SERVER", "localhost")
+    POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
+    POSTGRES_DB = os.environ.get("POSTGRES_DB", "bankingapp")
+    POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
+    POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "3277212382")
     
-    # Database settings
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///banking.db'
+    # Build PostgreSQL connection string
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}:{POSTGRES_PORT}/{POSTGRES_DB}'
+    
+    # SQLite fallback (commented out)
+    # SQLALCHEMY_DATABASE_URI = 'sqlite:///banking.db'
+    
+    # Pool settings for better connection management
+    SQLALCHEMY_POOL_SIZE = 10
+    SQLALCHEMY_MAX_OVERFLOW = 20
+    SQLALCHEMY_POOL_TIMEOUT = 30
+    SQLALCHEMY_POOL_RECYCLE = 1800
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Encryption keys

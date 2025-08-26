@@ -1,5 +1,4 @@
 import { endpoints, authHeaders, securityHelpers } from './config';
-import axios from 'axios';
 
 /**
  * Authentication Service
@@ -8,6 +7,26 @@ import axios from 'axios';
  * refreshing tokens, and managing user sessions.
  */
 class AuthService {
+  /**
+   * Ensure we have a valid token - refresh if needed
+   * @returns {Promise<string>} Valid access token
+   */
+  async ensureValidToken() {
+    try {
+      const token = this.getAccessToken();
+      if (!token) {
+        // No token available, user needs to log in
+        throw new Error('No authentication token available');
+      }
+
+      // We'll just return the token and handle 401s in the actual API calls
+      return token;
+    } catch (error) {
+      console.error('Error ensuring valid token:', error);
+      throw error;
+    }
+  }
+
   /**
    * Login with email and password
    * @param {string} email - User email 
@@ -114,7 +133,7 @@ class AuthService {
       const registrationData = {
         username: userData.username,
         email: userData.email,
-        password: securityHelpers.hash(userData.password), // Hash the password
+        password: userData.password, // Server will hash it
         first_name: userData.firstName || '',
         last_name: userData.lastName || '',
         phone_number: userData.phoneNumber || ''
@@ -142,8 +161,8 @@ class AuthService {
   
   /**
    * Refresh the authentication token
-   * @returns {Promise} Response with new auth token
-   */
+   * @returns {Promise<string>} New access token
+   */  
   async refreshToken() {
     try {
       const refreshToken = localStorage.getItem('refreshToken');
@@ -151,17 +170,36 @@ class AuthService {
         throw new Error('No refresh token available');
       }
       
-      // Use axios directly (which is now properly imported)
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/auth/refresh-token`,
-        { refreshToken }
-      );
+      const response = await fetch(endpoints.refreshToken, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ refresh_token: refreshToken })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to refresh token');
+      }
+      
+      const data = await response.json();
       
       // Store the new tokens
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem('refreshToken', data.refresh_token);
+        }
+      } else if (data.token) {
+        localStorage.setItem('token', data.token);
+        if (data.refreshToken) {
+          localStorage.setItem('refreshToken', data.refreshToken);
+        }
+      } else {
+        throw new Error('No token in refresh response');
+      }
       
-      return response.data.token;
+      return this.getAccessToken();
     } catch (error) {
       console.error('Error refreshing token:', error);
       // Don't logout here, let the calling function decide
@@ -229,26 +267,49 @@ class AuthService {
   }
   
   /**
-   * Get user profile
+   * Get user profile with automatic token refresh on 401
    * @returns {Promise} Response with user profile
    */
   async getProfile() {
     try {
+      // First try with current token
       const token = this.getAccessToken();
-      
       if (!token) {
         throw new Error('Not authenticated');
       }
       
-      const response = await fetch(endpoints.profile, {
+      let response = await fetch(endpoints.profile, {
         method: 'GET',
         headers: authHeaders(token)
       });
       
-      // If token is expired, try refreshing it
+      // If unauthorized, try refreshing token once
       if (response.status === 401) {
-        await this.refreshToken();
-        return this.getProfile();
+        try {
+          console.log('Token expired, attempting refresh...');
+          await this.refreshToken();
+          const newToken = this.getAccessToken();
+          
+          // Try again with new token
+          response = await fetch(endpoints.profile, {
+            method: 'GET',
+            headers: authHeaders(newToken)
+          });
+        } catch (refreshError) {
+          console.error('Failed to refresh token:', refreshError);
+          // Clear tokens on refresh failure
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          throw new Error('Authentication session expired. Please log in again.');
+        }
+      }
+      
+      // If still unauthorized after refresh, we have a more serious problem
+      if (response.status === 401) {
+        console.error('Still unauthorized after token refresh');
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        throw new Error('Authentication expired. Please log in again.');
       }
       
       if (!response.ok) {
@@ -271,21 +332,32 @@ class AuthService {
   async updateProfile(profileData) {
     try {
       const token = this.getAccessToken();
-      
       if (!token) {
         throw new Error('Not authenticated');
       }
       
-      const response = await fetch(endpoints.updateProfile, {
+      let response = await fetch(endpoints.updateProfile, {
         method: 'PUT',
         headers: authHeaders(token),
         body: JSON.stringify(profileData)
       });
       
-      // If token is expired, try refreshing it
+      // If unauthorized, try refreshing token once
       if (response.status === 401) {
-        await this.refreshToken();
-        return this.updateProfile(profileData);
+        try {
+          await this.refreshToken();
+          const newToken = this.getAccessToken();
+          
+          // Try again with new token
+          response = await fetch(endpoints.updateProfile, {
+            method: 'PUT',
+            headers: authHeaders(newToken),
+            body: JSON.stringify(profileData)
+          });
+        } catch (refreshError) {
+          console.error('Failed to refresh token:', refreshError);
+          throw new Error('Authentication session expired. Please log in again.');
+        }
       }
       
       if (!response.ok) {
@@ -302,7 +374,7 @@ class AuthService {
           lastName: profileData.last_name || currentUser.lastName
         };
         
-        const encryptedUser = securityHelpers.encrypt(updatedUser, 'update-profile');
+        const encryptedUser = securityHelpers.encrypt(updatedUser, securityHelpers.DEFAULT_KEY);
         sessionStorage.setItem('user', encryptedUser);
       }
       
@@ -313,6 +385,54 @@ class AuthService {
     }
   }
   
+  /**
+   * Change user password
+   * @param {Object} passwordData - Password data with current_password and new_password
+   * @returns {Promise} Response data
+   */
+  async changePassword(passwordData) {
+    try {
+      const token = this.getAccessToken();
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+      
+      let response = await fetch(endpoints.changePassword, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify(passwordData)
+      });
+      
+      // If unauthorized, try refreshing token once
+      if (response.status === 401) {
+        try {
+          await this.refreshToken();
+          const newToken = this.getAccessToken();
+          
+          // Try again with new token
+          response = await fetch(endpoints.changePassword, {
+            method: 'POST',
+            headers: authHeaders(newToken),
+            body: JSON.stringify(passwordData)
+          });
+        } catch (refreshError) {
+          console.error('Failed to refresh token:', refreshError);
+          throw new Error('Authentication session expired. Please log in again.');
+        }
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to change password');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Change password error:', error);
+      throw error;
+    }
+  }
+
   /**
    * Get the current access token
    * @returns {string|null} Current access token or null
@@ -334,7 +454,11 @@ class AuthService {
       // (password substring) is not available after page refresh
       let user = null;
       
-      // Try with a consistent app key first
+      // Try with the default key first
+      user = securityHelpers.decrypt(encryptedUser, securityHelpers.DEFAULT_KEY);
+      if (user) return user;
+      
+      // Try with a consistent app key 
       user = securityHelpers.decrypt(encryptedUser, 'current-user');
       if (user) return user;
       

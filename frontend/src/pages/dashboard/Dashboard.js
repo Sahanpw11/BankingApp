@@ -61,13 +61,14 @@ const Dashboard = () => {
     
     setBalanceHistory(balanceData);
     
-    setSpendingByCategory([
-      { name: 'Groceries', value: 450 },
-      { name: 'Utilities', value: 300 },
-      { name: 'Entertainment', value: 200 },
-      { name: 'Dining', value: 250 },
-      { name: 'Transportation', value: 180 }
-    ]);
+    // Simplified chart data to match the screenshot exactly
+    const hardcodedCategoryData = [
+      { name: 'Housing', value: 1200.00 },
+      { name: 'Utilities', value: 300.00 },
+      { name: 'Other', value: 200.00 }
+    ];
+    
+    setSpendingByCategory(hardcodedCategoryData);
   };
 
   // Create mock data function that doesn't depend on other state
@@ -483,13 +484,6 @@ const Dashboard = () => {
                 <AccountBalanceIcon color="primary" sx={{ mr: 1 }} />
                 <Typography variant="h6">Your Accounts</Typography>
               </Box>
-              <Button 
-                startIcon={<AddIcon />}
-                onClick={handleAddAccountClick}
-                size="small"
-              >
-                Add Account
-              </Button>
             </Box>
             <Divider sx={{ mb: 2 }} />
             
@@ -531,16 +525,8 @@ const Dashboard = () => {
             ) : (
               <Box textAlign="center" py={3}>
                 <Typography color="text.secondary">
-                  You don't have any accounts yet.
+                  You don't have any accounts yet. Please contact an administrator to open an account.
                 </Typography>
-                <Button 
-                  variant="contained" 
-                  startIcon={<AddIcon />}
-                  onClick={handleAddAccountClick}
-                  sx={{ mt: 2 }}
-                >
-                  Open Your First Account
-                </Button>
               </Box>
             )}
           </Paper>
@@ -558,12 +544,26 @@ const Dashboard = () => {
                 <Typography variant="subtitle1" gutterBottom>
                   Spending by Category
                 </Typography>
-                <Box sx={{ height: 250 }}>
-                  <PieChart 
-                    data={spendingByCategory} 
-                    dataKey="value" 
-                    nameKey="name" 
-                  />
+                <Box 
+                  sx={{ 
+                    height: 300, 
+                    width: '100%',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    position: 'relative'
+                  }}
+                >
+                  {spendingByCategory.length > 0 ? (
+                    <PieChart 
+                      data={spendingByCategory} 
+                      dataKey="value" 
+                      nameKey="name"
+                      title="Spending"
+                      colors={['#0088FE', '#00C49F', '#FFBB28']}
+                    />
+                  ) : (
+                    <Typography color="text.secondary">No spending data available</Typography>
+                  )}
                 </Box>
               </Grid>
               <Grid item xs={12} md={6}>
@@ -571,7 +571,7 @@ const Dashboard = () => {
                   Monthly Summary
                 </Typography>
                 
-                <Box p={2} bgcolor="background.paper" borderRadius={1}>
+                <Box borderRadius={1}>
                   <Box display="flex" justifyContent="space-between" mb={2}>
                     <Typography variant="body2" color="text.secondary">
                       Income:
@@ -579,7 +579,7 @@ const Dashboard = () => {
                     <Box display="flex" alignItems="center">
                       <ArrowUpwardIcon fontSize="small" color="success" sx={{ mr: 0.5 }} />
                       <Typography variant="body1" color="success.main" fontWeight="medium">
-                        {formatCurrency(5230)}
+                        $5,230.00
                       </Typography>
                     </Box>
                   </Box>
@@ -591,19 +591,19 @@ const Dashboard = () => {
                     <Box display="flex" alignItems="center">
                       <ArrowDownwardIcon fontSize="small" color="error" sx={{ mr: 0.5 }} />
                       <Typography variant="body1" color="error.main" fontWeight="medium">
-                        {formatCurrency(3650)}
+                        $3,650.00
                       </Typography>
                     </Box>
                   </Box>
                   
                   <Divider sx={{ my: 1 }} />
                   
-                  <Box display="flex" justifyContent="space-between">
+                  <Box display="flex" justifyContent="space-between" mt={2}>
                     <Typography variant="body2" fontWeight="medium">
                       Net Savings:
                     </Typography>
                     <Typography variant="body1" fontWeight="bold">
-                      {formatCurrency(1580)}
+                      $1,580.00
                     </Typography>
                   </Box>
                 </Box>

@@ -12,6 +12,11 @@ class User(db.Model):
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     phone_number = db.Column(db.String(20), nullable=True)
+    date_of_birth = db.Column(db.Date, nullable=True)
+    address = db.Column(db.String(200), nullable=True)
+    occupation = db.Column(db.String(100), nullable=True)
+    security_question = db.Column(db.String(100), nullable=True)
+    security_answer = db.Column(db.String(100), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -47,6 +52,11 @@ class User(db.Model):
             'first_name': self.first_name,
             'last_name': self.last_name,
             'phone_number': self.phone_number,
+            'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
+            'address': self.address,
+            'occupation': self.occupation,
+            'security_question': self.security_question,
+            'security_answer': self.security_answer,
             'is_admin': self.is_admin,
             'created_at': self.created_at.isoformat(),
             'last_login': self.last_login.isoformat() if self.last_login else None

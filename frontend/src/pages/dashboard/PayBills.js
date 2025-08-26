@@ -75,10 +75,15 @@ const PayBills = () => {
   const [newBillerName, setNewBillerName] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
+  const [errors, setErrors] = useState({});  const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
   const [showAddBillerDialog, setShowAddBillerDialog] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [paymentSuccessDialog, setPaymentSuccessDialog] = useState({
+    open: false,
+    amount: 0,
+    description: '',
+    reference: '',
+  });
   
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -350,8 +355,7 @@ const PayBills = () => {
         frequency: formData.isRecurring ? formData.frequency : null,
         end_date: formData.isRecurring && formData.endDate ? new Date(formData.endDate).toISOString() : null
       };
-      
-      // Create payment
+        // Create payment
       const result = await transactionAPI.createPayment(paymentData);
       
       // Save biller if requested
@@ -368,15 +372,31 @@ const PayBills = () => {
         await BillerService.saveBiller(savedBillerData);
       }
       
-      // Show success notification
-      setNotification({
+      // Show success dialog instead of just a notification
+      setPaymentSuccessDialog({
         open: true,
-        message: "Payment scheduled successfully",
-        severity: "success"
+        amount: paymentData.amount,
+        description: result.transaction.description,
+        reference: result.transaction.reference
       });
       
-      // Navigate to confirmation page or back to accounts
-      navigate(`/payment-confirmation/${result.transaction.id}`);
+      // Reset form after successful payment
+      setFormData({
+        sourceAccountId: '',
+        billerId: '',
+        billerAccountNumber: '',
+        amount: '',
+        description: '',
+        paymentDate: new Date().toISOString().split('T')[0],
+        referenceNumber: '',
+        isRecurring: false,
+        frequency: 'monthly',
+        endDate: '',
+        saveAsBiller: false
+      });
+      
+      // Stay on the current page to show the success message
+      setSubmitting(false);
     } catch (error) {
       console.error("Payment error:", error);
       setSubmitting(false);
@@ -387,12 +407,21 @@ const PayBills = () => {
       });
     }
   };
-  
-  const handleCloseNotification = (event, reason) => {
+    const handleCloseNotification = (event, reason) => {
     if (reason === 'clickaway') {
       return;
     }
     setNotification({ ...notification, open: false });
+  };
+  
+  const handlePaymentSuccessDone = () => {
+    setPaymentSuccessDialog({ ...paymentSuccessDialog, open: false });
+    
+    // Reset active step to beginning for a new payment
+    setActiveStep(0);
+    
+    // Also reset any submitting state
+    setSubmitting(false);
   };
   
   const getSelectedBiller = () => {
@@ -956,8 +985,39 @@ const PayBills = () => {
           sx={{ width: '100%' }}
         >
           {notification.message}
-        </Alert>
-      </Snackbar>
+        </Alert>      </Snackbar>
+      
+      {/* Payment Success Dialog */}
+      <Dialog 
+        open={paymentSuccessDialog.open}
+        onClose={() => setPaymentSuccessDialog({ ...paymentSuccessDialog, open: false })}
+        maxWidth="xs"
+        fullWidth
+      >
+        <Box sx={{ p: 3, textAlign: 'center' }}>
+          <CheckCircleIcon 
+            color="success" 
+            sx={{ fontSize: 60, mb: 2 }}
+          />
+          <Typography variant="h5" component="div" sx={{ mb: 2 }}>
+            Payment Successful
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            Your payment of ${paymentSuccessDialog.amount} has been processed successfully.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            The transaction reference number is {paymentSuccessDialog.reference}.
+          </Typography>          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              onClick={handlePaymentSuccessDone}
+            >
+              Done
+            </Button>
+          </Box>
+        </Box>
+      </Dialog>
     </Container>
   );
 };

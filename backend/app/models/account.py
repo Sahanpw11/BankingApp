@@ -30,12 +30,25 @@ class Account(db.Model):
     def balance(self, value):
         self.balance_encrypted = encrypt_data(str(value).encode('utf-8'))
     
-    def to_dict(self):
-        return {
+    def to_dict(self, include_user_details=False):
+        account_dict = {
             'id': self.id,
             'account_number': self.account_number,
             'account_type': self.account_type,
             'balance': self.balance,
+            'currency': 'USD',  # Default currency, could be stored in DB in a real app
             'is_active': self.is_active,
+            'user_id': self.user_id,
             'created_at': self.created_at.isoformat()
         }
+        
+        # Include user details for admin views
+        if include_user_details and hasattr(self, 'user'):
+            account_dict['user'] = {
+                'id': self.user.id,
+                'firstName': self.user.first_name,
+                'lastName': self.user.last_name,
+                'email': self.user.email
+            }
+            
+        return account_dict

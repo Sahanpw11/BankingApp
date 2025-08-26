@@ -28,6 +28,8 @@ import TransactionsPage from './pages/dashboard/TransactionsPage';
 import AdminDashboard from './pages/admin/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
 import UserDetails from './pages/admin/UserDetails';
+import UserEdit from './pages/admin/UserEdit';
+import AdminSettings from './pages/admin/AdminSettings';
 import AccountManagement from './pages/admin/AccountManagement';
 import TransactionHistory from './pages/admin/TransactionHistory';
 
@@ -77,8 +79,10 @@ function App() {
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<UserManagement />} />
               <Route path="/admin/users/:userId" element={<UserDetails />} />
+              <Route path="/admin/users/:userId/edit" element={<UserEdit />} />
               <Route path="/admin/accounts" element={<AccountManagement />} />
               <Route path="/admin/transactions" element={<TransactionHistory />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
             </Route>
             
             {/* Default Route */}

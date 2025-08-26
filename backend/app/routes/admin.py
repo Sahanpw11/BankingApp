@@ -41,9 +41,11 @@ def get_all_users():
 def get_all_accounts():
     """Get all accounts (admin only)"""
     try:
-        accounts = Account.query.all()
+        # Query accounts with user relationship to include user details
+        accounts = Account.query.join(User).all()
+        
         return jsonify({
-            'accounts': [account.to_dict() for account in accounts]
+            'accounts': [account.to_dict(include_user_details=True) for account in accounts]
         }), 200
     except Exception as e:
         logging.error(f"Admin get accounts error: {str(e)}")
@@ -93,6 +95,7 @@ def update_user(user_id):
         return jsonify({'message': 'Failed to update user', 'error': str(e)}), 500
 
 @admin_bp.route('/users/<user_id>', methods=['GET'])
+@jwt_required()
 @admin_required
 def get_user(user_id):
     user = User.query.filter_by(id=user_id).first()
@@ -109,30 +112,37 @@ def get_user(user_id):
             'accountNumber': account.account_number,
             'accountType': account.account_type,
             'balance': account.balance,
-            'currency': account.currency,
+            'currency': 'USD',  # Default currency since it's not stored in the model
             'isActive': account.is_active,
             'createdAt': account.created_at.isoformat()
         })
     
-    return jsonify({
+    # Create user data dictionary with safe attribute access
+    user_data = {
         'id': user.id,
         'username': user.username,
         'email': user.email,
         'firstName': user.first_name,
         'lastName': user.last_name,
-        'phoneNumber': user.phone_number,
-        'address': user.address,
-        'dateOfBirth': user.date_of_birth.isoformat() if user.date_of_birth else None,
+        'phoneNumber': getattr(user, 'phone_number', None),
+        'dateOfBirth': user.date_of_birth.isoformat() if hasattr(user, 'date_of_birth') and user.date_of_birth else None,
         'isAdmin': user.is_admin,
         'isActive': user.is_active,
-        'emailVerified': user.email_verified,
-        'twoFactorEnabled': user.two_factor_enabled,
+        'emailVerified': getattr(user, 'email_verified', False),
+        'twoFactorEnabled': getattr(user, 'two_factor_enabled', False),
         'createdAt': user.created_at.isoformat(),
-        'lastLogin': user.last_login.isoformat() if user.last_login else None,
+        'lastLogin': user.last_login.isoformat() if hasattr(user, 'last_login') and user.last_login else None,
         'accounts': account_data
-    }), 200
+    }
+    
+    # Only add address if it exists
+    if hasattr(user, 'address'):
+        user_data['address'] = user.address
+    
+    return jsonify(user_data), 200
 
 @admin_bp.route('/dashboard', methods=['GET'])
+@jwt_required()
 @admin_required
 def get_dashboard():
     # Get system statistics
@@ -140,9 +150,10 @@ def get_dashboard():
     account_count = Account.query.count()
     transaction_count = Transaction.query.count()
     
-    # Calculate total balance across all accounts
-    from sqlalchemy import func
-    total_balance = db.session.query(func.sum(Account.balance)).scalar() or 0
+    # Calculate total balance - can't use SQL aggregation on encrypted property
+    # Need to iterate and sum manually
+    accounts = Account.query.all()
+    total_balance = sum(account.balance for account in accounts)
     
     # Get recent transactions
     recent_transactions = Transaction.query.order_by(Transaction.created_at.desc()).limit(5).all()

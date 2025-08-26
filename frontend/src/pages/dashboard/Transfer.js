@@ -183,8 +183,7 @@ const Transfer = () => {
   const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
-  
-  // Handle transfer submission
+    // Handle transfer submission
   const handleSubmit = async () => {
     try {
       setProcessing(true);
@@ -196,7 +195,7 @@ const Transfer = () => {
         // Internal transfer
         transferRequest = {
           source_account_id: transferData.sourceAccountId,
-          destination_account_id: transferData.destinationAccountId,
+          destination_account_id: transferData.destinationAccountId, // Ensure we use the correct field name
           amount: parseFloat(transferData.amount),
           currency: transferData.currency,
           description: transferData.description || 'Transfer',
@@ -234,10 +233,20 @@ const Transfer = () => {
       setTransferResult(result);
       setSuccessDialogOpen(true);
       setProcessing(false);
-      
-    } catch (err) {
+        } catch (err) {
       console.error("Transfer error:", err);
-      setError(err.message || 'Failed to process transfer. Please try again.');
+      // Provide a more detailed error message to help troubleshoot
+      let errorMessage = 'Failed to process transfer. Please try again.';
+      if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      // Check for specific errors that might need clearer messages
+      if (err.response?.data?.error && err.response.data.error.includes('destination_account_id')) {
+        errorMessage = 'The destination account could not be found. Please check and try again.';
+      }
+      
+      setError(errorMessage);
       setProcessing(false);
     }
   };
@@ -590,10 +599,9 @@ const Transfer = () => {
             <CheckIcon color="success" sx={{ mr: 1 }} />
             Transfer Successful
           </Box>
-        </DialogTitle>
-        <DialogContent>
+        </DialogTitle>        <DialogContent>
           <DialogContentText id="alert-dialog-description">
-            Your transfer of {transferResult && formatCurrency(transferResult.amount, transferResult.currency)} has been processed successfully. The transaction reference number is {transferResult && transferResult.id}.
+            Your transfer of {transferResult && transferResult.transaction && formatCurrency(transferResult.transaction.amount, transferResult.transaction.currency)} has been processed successfully. The transaction reference number is {transferResult && transferResult.transaction && transferResult.transaction.id}.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

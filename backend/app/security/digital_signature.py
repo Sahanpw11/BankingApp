@@ -83,9 +83,12 @@ def sign_transaction(transaction_data, private_key_pem):
         password=None
     )
     
-    # Sign the data
+    # Ensure transaction_data is properly encoded
+    data_to_sign = transaction_data.encode('utf-8') if isinstance(transaction_data, str) else transaction_data
+    
+    # Sign the data using PSS padding with SHA-256
     signature = private_key.sign(
-        transaction_data.encode('utf-8') if isinstance(transaction_data, str) else transaction_data,
+        data_to_sign,
         padding.PSS(
             mgf=padding.MGF1(hashes.SHA256()),
             salt_length=padding.PSS.MAX_LENGTH
@@ -93,6 +96,7 @@ def sign_transaction(transaction_data, private_key_pem):
         hashes.SHA256()
     )
     
+    # Return raw binary signature data
     return signature
 
 def verify_transaction(transaction_data, signature, public_key_pem):

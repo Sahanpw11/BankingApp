@@ -10,16 +10,17 @@ const AdminRoute = ({ children }) => {
   useEffect(() => {
     const checkAdminStatus = async () => {
       try {
-        const isAuthenticated = authService.isAuthenticated();
+        const isLoggedIn = authService.isLoggedIn();
         
-        if (!isAuthenticated) {
+        if (!isLoggedIn) {
           setIsAdmin(false);
           setLoading(false);
           return;
         }
         
-        const userProfile = await authService.getProfile();
-        setIsAdmin(userProfile.isAdmin);
+        // Check if user is admin directly from stored user data
+        const isAdminUser = authService.isAdmin();
+        setIsAdmin(isAdminUser);
         setLoading(false);
       } catch (error) {
         console.error('Error checking admin status:', error);

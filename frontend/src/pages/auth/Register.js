@@ -13,11 +13,11 @@ import authService from '../../api/auth';
 
 const Register = () => {
   const navigate = useNavigate();
-  const [activeStep, setActiveStep] = useState(0);
-  const [formData, setFormData] = useState({
+  const [activeStep, setActiveStep] = useState(0);  const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
+    username: '',
     password: '',
     confirmPassword: '',
     phone: '',
@@ -44,12 +44,13 @@ const Register = () => {
 
   const validateStep = () => {
     const newErrors = {};
-    
-    if (activeStep === 0) {
+      if (activeStep === 0) {
       if (!formData.firstName) newErrors.firstName = 'First name is required';
       if (!formData.lastName) newErrors.lastName = 'Last name is required';
       if (!formData.email) newErrors.email = 'Email is required';
       else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
+      if (!formData.username) newErrors.username = 'Username is required';
+      else if (formData.username.length < 3) newErrors.username = 'Username must be at least 3 characters';
     } else if (activeStep === 1) {
       if (!formData.password) newErrors.password = 'Password is required';
       else if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
@@ -81,13 +82,13 @@ const Register = () => {
     
     setLoading(true);
     
-    try {
-      await authService.register({
-        first_name: formData.firstName,
-        last_name: formData.lastName,
+    try {      await authService.register({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email,
+        username: formData.username,
         password: formData.password,
-        phone: formData.phone,
+        phoneNumber: formData.phone,
         address: formData.address
       });
       
@@ -136,8 +137,7 @@ const Register = () => {
               error={!!errors.lastName}
               helperText={errors.lastName}
             />
-            
-            <TextField
+              <TextField
               margin="normal"
               required
               fullWidth
@@ -149,6 +149,20 @@ const Register = () => {
               onChange={handleChange}
               error={!!errors.email}
               helperText={errors.email}
+            />
+            
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="username"
+              label="Username"
+              name="username"
+              autoComplete="username"
+              value={formData.username}
+              onChange={handleChange}
+              error={!!errors.username}
+              helperText={errors.username}
             />
           </>
         );
